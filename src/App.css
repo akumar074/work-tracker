@@ -289,6 +289,10 @@ body {
 }
 @media (max-width: 960px) { .calendar-layout { grid-template-columns: 1fr; } }
 
+.calendar-layout-stacked {
+  display: flex; flex-direction: column; gap: 22px;
+}
+
 /* ── Calendar container ──────────────────────────────────────────────────── */
 .calendar-container {
   background: var(--bg); border: 1px solid var(--border);

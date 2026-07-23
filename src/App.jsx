@@ -93,7 +93,7 @@ export default function App() {
         <main className="page-content">
           {page === 'dashboard' && <DashboardPage store={store} onNavigate={setPage} />}
           {page === 'calendar'  && (
-            <div className="calendar-layout">
+            <div className="calendar-layout-stacked">
               <CalendarView store={store} selectedDate={selectedDate}
                 onSelectDate={setSelectedDate} viewMode={viewMode} onViewModeChange={setViewMode} />
               <DayDetail dateStr={selectedDate} store={store} />
