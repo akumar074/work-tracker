@@ -17,7 +17,10 @@ function inlineAssetsPlugin() {
       const assetsDir = join(distDir, 'assets')
       const htmlPath = join(distDir, 'index.html')
 
-      const files = readdirSync(assetsDir)
+      let files
+      try { files = readdirSync(assetsDir) }
+      catch { console.warn('[inline-assets] dist/assets not found, skipping'); return }
+
       const cssFile = files.find(f => f.endsWith('.css'))
       const jsFile  = files.find(f => f.endsWith('.js'))
 
