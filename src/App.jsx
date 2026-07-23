@@ -30,7 +30,7 @@ const PRIORITY_COLORS = { high:'#ef4444', medium:'#f59e0b', low:'#10b981' };
 
 export default function App() {
   const store = useStore();
-  const [page, setPage] = useState('dashboard');
+  const [page, setPage] = useState('calendar');
   const [selectedDate, setSelectedDate] = useState(fmt(new Date()));
   const [viewMode, setViewMode] = useState('month');
   const [showExport, setShowExport] = useState(false);
