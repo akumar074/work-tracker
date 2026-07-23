@@ -1,2 +1,2 @@
+/* index.css — minimal reset only; all tokens and styles live in App.css */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: #f7f8fa; }
