@@ -1,9 +1,8 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Base path for GitHub Pages: /<repo-name>/
-// Change 'work-tracker' if you rename the repo.
+// IBM GHE Pages serves at: /Abhishek-Kumar141/work-tracker/
 export default defineConfig({
   plugins: [react()],
-  base: '/work-tracker/',
+  base: '/Abhishek-Kumar141/work-tracker/',
 })
