@@ -8,10 +8,12 @@ import WorkEntryModal from './components/WorkEntryModal';
 import {
   fmt, fmtDisplay, getDateRangePreset, subDays, startOfMonth, subMonths, format
 } from './utils/dateUtils';
+import ImportExportPanel from './components/ImportExportPanel';
+import GistPanel from './components/GistPanel';
 import {
   LayoutDashboard, CalendarDays, ListTodo, BookOpen,
-  Download, Plus, Pencil, Trash2, CheckSquare, Square,
-  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu
+  Download, Upload, Plus, Pencil, Trash2, CheckSquare, Square,
+  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud
 } from 'lucide-react';
 import './App.css';
 
@@ -34,6 +36,8 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(fmt(new Date()));
   const [viewMode, setViewMode] = useState('month');
   const [showExport, setShowExport] = useState(false);
+  const [showIE, setShowIE] = useState(false);
+  const [showGist, setShowGist] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const pendingTodos = store.todos.filter(t => !t.completed).length;
@@ -66,6 +70,12 @@ export default function App() {
         </nav>
 
         <div className="sidebar-footer">
+          <button className="sidebar-link" onClick={() => setShowGist(true)}>
+            <Cloud size={18} /><span>Gist Sync</span>
+          </button>
+          <button className="sidebar-link" onClick={() => setShowIE(true)}>
+            <Upload size={18} /><span>Import / Export</span>
+          </button>
           <button className="sidebar-link" onClick={() => setShowExport(true)}>
             <Download size={18} /><span>Export Excel</span>
           </button>
@@ -105,6 +115,8 @@ export default function App() {
       </div>
 
       {showExport && <ExportPanel store={store} onClose={() => setShowExport(false)} />}
+      {showIE && <ImportExportPanel store={store} onClose={() => setShowIE(false)} />}
+      {showGist && <GistPanel store={store} onClose={() => setShowGist(false)} />}
     </div>
   );
 }
