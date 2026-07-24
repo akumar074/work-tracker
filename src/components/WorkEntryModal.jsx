@@ -4,7 +4,7 @@ import { fmt, fmtDisplay } from '../utils/dateUtils';
 
 const CATEGORIES = ['Development', 'Meeting', 'Review', 'Documentation', 'Testing', 'Research', 'Other'];
 
-export default function WorkEntryModal({ date, entry, onSave, onClose }) {
+export default function WorkEntryModal({ date, entry, onSave, onClose, convertMode }) {
   const isEdit = !!entry;
   const [form, setForm] = useState({
     title: entry?.title || '',
@@ -45,7 +45,11 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{isEdit ? 'Edit Work Entry' : 'Add Work Entry'}</h2>
+          <h2>
+            {convertMode ? '🔄 Convert Todo to Work Entry'
+              : isEdit   ? 'Edit Work Entry'
+              : 'Add Work Entry'}
+          </h2>
           <button className="icon-btn" onClick={onClose}><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="modal-form">
@@ -101,7 +105,9 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Add Entry'}</button>
+            <button type="submit" className="btn btn-primary">
+              {convertMode ? 'Convert & Save' : isEdit ? 'Save Changes' : 'Add Entry'}
+            </button>
           </div>
         </form>
       </div>

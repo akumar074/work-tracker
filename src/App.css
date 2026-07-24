@@ -1044,3 +1044,9 @@ body {
   padding: 1px 6px; border-radius: var(--radius-xs);
   white-space: nowrap;
 }
+
+/* ── Convert todo button ─────────────────────────────────────────────────── */
+.icon-btn.convert-btn:hover {
+  color: var(--secondary);
+  background: var(--secondary-light);
+}

@@ -13,7 +13,7 @@ import GistPanel from './components/GistPanel';
 import {
   LayoutDashboard, CalendarDays, ListTodo, BookOpen,
   Download, Upload, Plus, Pencil, Trash2, CheckSquare, Square,
-  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud, GripVertical
+  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud, GripVertical, ArrowRightLeft
 } from 'lucide-react';
 import './App.css';
 
@@ -495,11 +495,26 @@ function LogsPage({ store }) {
   );
 }
 
+// ── helper: seed a WorkEntryModal form from a todo ────────────────────────────
+function todoToWorkEntry(todo) {
+  return {
+    title:       todo.title,
+    description: todo.notes  || '',
+    category:    'Development',
+    hours:       '',
+    tags:        [],
+    date:        todo.scopeValue && todo.scope === 'day' ? todo.scopeValue : fmt(new Date()),
+    endDate:     todo.dueDate && todo.scope === 'day' && todo.dueDate !== todo.scopeValue
+                   ? todo.dueDate : null,
+  };
+}
+
 // ── Todos Page ────────────────────────────────────────────────────────────────
 function TodosPage({ store }) {
   const [filter, setFilter] = useState('all');
   const [todoModal, setTodoModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [convertTodo, setConvertTodo] = useState(null); // todo being converted
 
   // No sort by priority here — order is now persisted via drag
   let todos = [...store.todos];
@@ -543,6 +558,7 @@ function TodosPage({ store }) {
             store={store}
             onEdit={setTodoModal}
             onDelete={setConfirmId}
+            onConvert={setConvertTodo}
           />
         ))
       }
@@ -558,6 +574,19 @@ function TodosPage({ store }) {
           onClose={() => setTodoModal(null)}
         />
       )}
+      {convertTodo && (
+        <WorkEntryModal
+          convertMode
+          date={convertTodo.scopeValue && convertTodo.scope === 'day' ? convertTodo.scopeValue : fmt(new Date())}
+          entry={todoToWorkEntry(convertTodo)}
+          onSave={data => {
+            store.addWorkEntry(data);
+            store.updateTodo(convertTodo.id, { completed: true });
+            setConvertTodo(null);
+          }}
+          onClose={() => setConvertTodo(null)}
+        />
+      )}
       {confirmId && (
         <ConfirmModal text="Delete this todo?" onConfirm={() => { store.deleteTodo(confirmId); setConfirmId(null); }} onClose={() => setConfirmId(null)} />
       )}
@@ -565,7 +594,7 @@ function TodosPage({ store }) {
   );
 }
 
-function TodoGroup({ group, store, onEdit, onDelete }) {
+function TodoGroup({ group, store, onEdit, onDelete, onConvert }) {
   const dragIdx = useRef(null);
   const [overIdx, setOverIdx] = useState(null);
 
@@ -637,6 +666,9 @@ function TodoGroup({ group, store, onEdit, onDelete }) {
             </div>
           </div>
           <div className="item-actions">
+            <button className="icon-btn convert-btn" title="Convert to work entry" onClick={() => onConvert(t)}>
+              <ArrowRightLeft size={13}/>
+            </button>
             <button className="icon-btn" onClick={() => onEdit(t)}><Pencil size={13}/></button>
             <button className="icon-btn danger" onClick={() => onDelete(t.id)}><Trash2 size={13}/></button>
           </div>

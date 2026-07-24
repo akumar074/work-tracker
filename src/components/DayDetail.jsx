@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
-import { Plus, Pencil, Trash2, Clock, Tag, CheckSquare, Square, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
-import { fmtDisplay, fmtWeekKey, fmtMonthKey } from '../utils/dateUtils';
+import { Plus, Pencil, Trash2, Clock, Tag, CheckSquare, Square, ChevronDown, ChevronUp, GripVertical, ArrowRightLeft } from 'lucide-react';
+import { fmt, fmtDisplay, fmtWeekKey, fmtMonthKey } from '../utils/dateUtils';
 import WorkEntryModal from './WorkEntryModal';
 import EventModal from './EventModal';
 import TodoModal from './TodoModal';
@@ -62,6 +62,7 @@ export default function DayDetail({ dateStr, store }) {
   const [eventModal, setEventModal] = useState(null);
   const [todoModal, setTodoModal] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [convertTodo, setConvertTodo] = useState(null);
   const [sectionsOpen, setSectionsOpen] = useState({ work: true, events: true, todos: true });
 
   if (!dateStr) {
@@ -144,6 +145,9 @@ export default function DayDetail({ dateStr, store }) {
             </div>
           </div>
           <div className="item-actions">
+            <button className="icon-btn convert-btn" title="Convert to work entry" onClick={() => setConvertTodo(t)}>
+              <ArrowRightLeft size={13} />
+            </button>
             <button className="icon-btn" title="Edit"   onClick={() => setTodoModal(t)}><Pencil size={14} /></button>
             <button className="icon-btn danger" title="Delete" onClick={() => setConfirmDelete({ type: 'todo', id: t.id })}><Trash2 size={14} /></button>
           </div>
@@ -316,6 +320,28 @@ export default function DayDetail({ dateStr, store }) {
             setTodoModal(null);
           }}
           onClose={() => setTodoModal(null)}
+        />
+      )}
+      {convertTodo && (
+        <WorkEntryModal
+          convertMode
+          date={convertTodo.scope === 'day' ? convertTodo.scopeValue : dateStr}
+          entry={{
+            title:       convertTodo.title,
+            description: convertTodo.notes || '',
+            category:    'Development',
+            hours:       '',
+            tags:        [],
+            date:        convertTodo.scope === 'day' ? convertTodo.scopeValue : dateStr,
+            endDate:     convertTodo.dueDate && convertTodo.scope === 'day' &&
+                         convertTodo.dueDate !== convertTodo.scopeValue ? convertTodo.dueDate : null,
+          }}
+          onSave={data => {
+            store.addWorkEntry(data);
+            store.updateTodo(convertTodo.id, { completed: true });
+            setConvertTodo(null);
+          }}
+          onClose={() => setConvertTodo(null)}
         />
       )}
 
