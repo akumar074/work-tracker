@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react';
-import { Plus, Pencil, Trash2, Clock, Tag, CheckSquare, Square, ChevronDown, ChevronUp, GripVertical, ArrowRightLeft } from 'lucide-react';
+import { Plus, Pencil, Trash2, Clock, Tag, CheckSquare, Square, ChevronDown, ChevronUp, GripVertical, ArrowRightLeft, Eye } from 'lucide-react';
 import { fmt, fmtDisplay, fmtWeekKey, fmtMonthKey } from '../utils/dateUtils';
 import WorkEntryModal from './WorkEntryModal';
 import EventModal from './EventModal';
 import TodoModal from './TodoModal';
+import ItemDetailDialog from './ItemDetailDialog';
 
 const EVENT_COLORS = {
   leave: '#ef4444', holiday: '#f97316', sick: '#8b5cf6', wfh: '#06b6d4',
@@ -63,6 +64,7 @@ export default function DayDetail({ dateStr, store }) {
   const [todoModal, setTodoModal] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [convertTodo, setConvertTodo] = useState(null);
+  const [viewItem, setViewItem] = useState(null); // { item, type }
   const [sectionsOpen, setSectionsOpen] = useState({ work: true, events: true, todos: true });
 
   if (!dateStr) {
@@ -145,6 +147,7 @@ export default function DayDetail({ dateStr, store }) {
             </div>
           </div>
           <div className="item-actions">
+            <button className="icon-btn" title="View details" onClick={() => setViewItem({ item: t, type: 'todo' })}><Eye size={13} /></button>
             <button className="icon-btn convert-btn" title="Convert to work entry" onClick={() => setConvertTodo(t)}>
               <ArrowRightLeft size={13} />
             </button>
@@ -193,6 +196,7 @@ export default function DayDetail({ dateStr, store }) {
                     <span className="drag-handle"><GripVertical size={13} /></span>
                     <span className="work-title">{entry.title}</span>
                     <div className="item-actions">
+                      <button className="icon-btn" title="View details" onClick={() => setViewItem({ item: entry, type: 'work' })}><Eye size={14} /></button>
                       <button className="icon-btn" title="Edit"   onClick={() => setWorkModal(entry)}><Pencil size={14} /></button>
                       <button className="icon-btn danger" title="Delete" onClick={() => setConfirmDelete({ type: 'work', id: entry.id })}><Trash2 size={14} /></button>
                     </div>
@@ -250,6 +254,7 @@ export default function DayDetail({ dateStr, store }) {
                     {ev.description && <p className="event-desc">{ev.description}</p>}
                   </div>
                   <div className="item-actions">
+                    <button className="icon-btn" title="View details" onClick={() => setViewItem({ item: ev, type: 'event' })}><Eye size={14} /></button>
                     <button className="icon-btn" onClick={() => setEventModal(ev)}><Pencil size={14} /></button>
                     <button className="icon-btn danger" onClick={() => setConfirmDelete({ type: 'event', id: ev.id })}><Trash2 size={14} /></button>
                   </div>
@@ -342,6 +347,24 @@ export default function DayDetail({ dateStr, store }) {
             setConvertTodo(null);
           }}
           onClose={() => setConvertTodo(null)}
+        />
+      )}
+
+      {/* ── Item Detail View ──────────────────────────────── */}
+      {viewItem && (
+        <ItemDetailDialog
+          item={viewItem.item}
+          type={viewItem.type}
+          onClose={() => setViewItem(null)}
+          onEdit={() => {
+            if (viewItem.type === 'work')  { setWorkModal(viewItem.item);  setViewItem(null); }
+            if (viewItem.type === 'event') { setEventModal(viewItem.item); setViewItem(null); }
+            if (viewItem.type === 'todo')  { setTodoModal(viewItem.item);  setViewItem(null); }
+          }}
+          onConvert={() => {
+            setConvertTodo(viewItem.item);
+            setViewItem(null);
+          }}
         />
       )}
 

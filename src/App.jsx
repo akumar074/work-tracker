@@ -11,12 +11,13 @@ import {
 } from './utils/dateUtils';
 import ImportExportPanel from './components/ImportExportPanel';
 import GistPanel from './components/GistPanel';
+import ItemDetailDialog from './components/ItemDetailDialog';
 import { isConnected, pushToGist, pullFromGist, getGistMeta, getLastPushedAt } from './utils/gist';
 import {
   LayoutDashboard, CalendarDays, ListTodo, BookOpen,
   Download, Upload, Plus, Pencil, Trash2, CheckSquare, Square,
   Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud, GripVertical,
-  ArrowRightLeft, CloudUpload, CloudDownload, RefreshCw, CheckCircle, AlertCircle
+  ArrowRightLeft, CloudUpload, CloudDownload, RefreshCw, CheckCircle, AlertCircle, Eye
 } from 'lucide-react';
 import './App.css';
 
@@ -517,6 +518,7 @@ function LogsPage({ store }) {
   const [catFilter, setCatFilter] = useState('all');
   const [workModal, setWorkModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [viewItem, setViewItem] = useState(null);
 
   const cats = ['all', ...new Set(store.workEntries.map(e => e.category).filter(Boolean))];
 
@@ -578,6 +580,7 @@ function LogsPage({ store }) {
                       {(e.tags || []).map(t => <span key={t} className="tag-pill">{t}</span>)}
                     </td>
                     <td className="td-actions">
+                      <button className="icon-btn" title="View details" onClick={() => setViewItem(e)}><Eye size={13}/></button>
                       <button className="icon-btn" onClick={() => setWorkModal(e)}><Pencil size={13}/></button>
                       <button className="icon-btn danger" onClick={() => setConfirmId(e.id)}><Trash2 size={13}/></button>
                     </td>
@@ -599,6 +602,15 @@ function LogsPage({ store }) {
             setWorkModal(null);
           }}
           onClose={() => setWorkModal(null)}
+        />
+      )}
+      {viewItem && (
+        <ItemDetailDialog
+          item={viewItem}
+          type="work"
+          onClose={() => setViewItem(null)}
+          onEdit={() => { setWorkModal(viewItem); setViewItem(null); }}
+          onConvert={null}
         />
       )}
       {confirmId && (
@@ -628,6 +640,7 @@ function TodosPage({ store }) {
   const [todoModal, setTodoModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [convertTodo, setConvertTodo] = useState(null); // todo being converted
+  const [viewTodo, setViewTodo] = useState(null);
 
   // No sort by priority here — order is now persisted via drag
   let todos = [...store.todos];
@@ -672,6 +685,7 @@ function TodosPage({ store }) {
             onEdit={setTodoModal}
             onDelete={setConfirmId}
             onConvert={setConvertTodo}
+            onView={setViewTodo}
           />
         ))
       }
@@ -700,6 +714,15 @@ function TodosPage({ store }) {
           onClose={() => setConvertTodo(null)}
         />
       )}
+      {viewTodo && (
+        <ItemDetailDialog
+          item={viewTodo}
+          type="todo"
+          onClose={() => setViewTodo(null)}
+          onEdit={() => { setTodoModal(viewTodo); setViewTodo(null); }}
+          onConvert={() => { setConvertTodo(viewTodo); setViewTodo(null); }}
+        />
+      )}
       {confirmId && (
         <ConfirmModal text="Delete this todo?" onConfirm={() => { store.deleteTodo(confirmId); setConfirmId(null); }} onClose={() => setConfirmId(null)} />
       )}
@@ -707,7 +730,7 @@ function TodosPage({ store }) {
   );
 }
 
-function TodoGroup({ group, store, onEdit, onDelete, onConvert }) {
+function TodoGroup({ group, store, onEdit, onDelete, onConvert, onView }) {
   const dragIdx = useRef(null);
   const [overIdx, setOverIdx] = useState(null);
 
@@ -778,6 +801,7 @@ function TodoGroup({ group, store, onEdit, onDelete, onConvert }) {
             </div>
           </div>
           <div className="item-actions">
+            {onView && <button className="icon-btn" title="View details" onClick={() => onView(t)}><Eye size={13}/></button>}
             <button className="icon-btn convert-btn" title="Convert to work entry" onClick={() => onConvert(t)}>
               <ArrowRightLeft size={13}/>
             </button>
