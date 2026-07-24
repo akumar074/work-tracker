@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useStore } from './store/useStore';
+import { replaceAllData } from './store/useStore';
 import CalendarView from './components/CalendarView';
 import DayDetail from './components/DayDetail';
 import ExportPanel from './components/ExportPanel';
@@ -10,10 +11,12 @@ import {
 } from './utils/dateUtils';
 import ImportExportPanel from './components/ImportExportPanel';
 import GistPanel from './components/GistPanel';
+import { isConnected, pushToGist, pullFromGist } from './utils/gist';
 import {
   LayoutDashboard, CalendarDays, ListTodo, BookOpen,
   Download, Upload, Plus, Pencil, Trash2, CheckSquare, Square,
-  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud, GripVertical, ArrowRightLeft
+  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud, GripVertical,
+  ArrowRightLeft, CloudUpload, CloudDownload, RefreshCw, CheckCircle, AlertCircle
 } from 'lucide-react';
 import './App.css';
 
@@ -39,6 +42,38 @@ export default function App() {
   const [showIE, setShowIE] = useState(false);
   const [showGist, setShowGist] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
+
+  // ── Quick Gist sync state ──────────────────────────────────────
+  const [gistSync, setGistSync] = useState('idle'); // idle|pushing|pulling|ok|err
+  const [gistMsg,  setGistMsg]  = useState('');
+  const [pullConfirm, setPullConfirm] = useState(null); // pulled data awaiting confirm
+
+  const connected = isConnected();
+
+  async function handleQuickPush() {
+    setGistSync('pushing'); setGistMsg('');
+    try {
+      await pushToGist({ workEntries: store.workEntries, events: store.events, todos: store.todos });
+      setGistSync('ok'); setGistMsg('Pushed ✓');
+      setTimeout(() => setGistSync('idle'), 3000);
+    } catch (e) { setGistSync('err'); setGistMsg(e.message); }
+  }
+
+  async function handleQuickPull() {
+    setGistSync('pulling'); setGistMsg('');
+    try {
+      const data = await pullFromGist();
+      setPullConfirm(data);
+      setGistSync('idle');
+    } catch (e) { setGistSync('err'); setGistMsg(e.message); }
+  }
+
+  function confirmPull() {
+    replaceAllData(pullConfirm);
+    setPullConfirm(null);
+    setGistSync('ok'); setGistMsg('Pulled ✓');
+    setTimeout(() => setGistSync('idle'), 3000);
+  }
 
   const pendingTodos = store.todos.filter(t => !t.completed).length;
   const todayEntries = store.getWorkEntriesForDate(fmt(new Date()));
@@ -97,7 +132,53 @@ export default function App() {
             <span className="stat-pill">Today <strong>{todayHours}h</strong></span>
             <span className="stat-pill">Pending <strong>{pendingTodos}</strong></span>
           </div>
+
+          {/* ── Quick Gist sync buttons (only when connected) ── */}
+          {connected && (
+            <div className="topbar-gist">
+              <button
+                className={`topbar-gist-btn ${gistSync === 'pushing' ? 'busy' : ''}`}
+                title="Push to Gist"
+                disabled={gistSync === 'pushing' || gistSync === 'pulling'}
+                onClick={handleQuickPush}
+              >
+                {gistSync === 'pushing'
+                  ? <RefreshCw size={14} className="spin" />
+                  : <CloudUpload size={14} />}
+                <span>Push</span>
+              </button>
+              <button
+                className={`topbar-gist-btn ${gistSync === 'pulling' ? 'busy' : ''}`}
+                title="Pull from Gist"
+                disabled={gistSync === 'pushing' || gistSync === 'pulling'}
+                onClick={handleQuickPull}
+              >
+                {gistSync === 'pulling'
+                  ? <RefreshCw size={14} className="spin" />
+                  : <CloudDownload size={14} />}
+                <span>Pull</span>
+              </button>
+              {gistSync === 'ok'  && <span className="gist-status ok"><CheckCircle size={13}/> {gistMsg}</span>}
+              {gistSync === 'err' && <span className="gist-status err"><AlertCircle size={13}/> {gistMsg}</span>}
+            </div>
+          )}
         </header>
+
+        {/* Pull confirm banner */}
+        {pullConfirm && (
+          <div className="pull-confirm-banner">
+            <AlertCircle size={15} />
+            <span>
+              Replace all local data with Gist contents?&nbsp;
+              <strong>{pullConfirm.workEntries.length} entries · {pullConfirm.events.length} events · {pullConfirm.todos.length} todos</strong>
+              {pullConfirm.pushedAt ? ` — saved ${pullConfirm.pushedAt.slice(0,10)}` : ''}
+            </span>
+            <div className="pull-confirm-actions">
+              <button className="btn btn-sm btn-ghost" onClick={() => setPullConfirm(null)}>Cancel</button>
+              <button className="btn btn-sm btn-danger" onClick={confirmPull}>Replace</button>
+            </div>
+          </div>
+        )}
 
         {/* Page content */}
         <main className="page-content">
