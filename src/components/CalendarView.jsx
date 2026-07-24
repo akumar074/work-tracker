@@ -41,9 +41,15 @@ export default function CalendarView({ store, selectedDate, onSelectDate, viewMo
     const todayFlag = isToday(day);
     const inMonth = viewMode === 'week' || isSameMonth(day, navDate);
     const entries = store.getWorkEntriesForDate(dateStr);
-    const events = store.getEventsForDate(dateStr);
-    const todos = store.getTodosForDate(dateStr);
-    const totalHours = entries.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
+    const events  = store.getEventsForDate(dateStr);
+    const todos   = store.getTodosForDate(dateStr);
+    const totalHours   = entries.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
+    const pendingTodos = todos.filter(t => !t.completed).length;
+    const doneTodos    = todos.filter(t =>  t.completed).length;
+
+    // Collapse many events: show first two inline, rest as "+N"
+    const visibleEvents = events.slice(0, 2);
+    const extraEvents   = events.length - visibleEvents.length;
 
     return (
       <div
@@ -51,26 +57,49 @@ export default function CalendarView({ store, selectedDate, onSelectDate, viewMo
         className={`calendar-day ${isSelected ? 'selected' : ''} ${todayFlag ? 'today' : ''} ${!inMonth ? 'out-of-month' : ''}`}
         onClick={() => onSelectDate(dateStr)}
       >
-        <span className="day-number">{format(day, 'd')}</span>
-        <div className="day-dots">
-          {events.map(ev => (
-            <span key={ev.id} className="day-badge event-badge"
-              style={{ background: EVENT_COLORS[ev.type] || EVENT_COLORS.other }}
-              title={`${EVENT_EMOJI[ev.type]} ${ev.title}`}>
-              {EVENT_EMOJI[ev.type]}
-            </span>
-          ))}
+        {/* ── Day number row ── */}
+        <div className="day-header-row">
+          <span className="day-number">{format(day, 'd')}</span>
           {entries.length > 0 && (
-            <span className="day-badge work-badge" title={`${entries.length} entr${entries.length > 1 ? 'ies' : 'y'} · ${totalHours}h`}>
-              {totalHours > 0 ? `${totalHours}h` : `${entries.length}w`}
-            </span>
-          )}
-          {todos.filter(t => !t.completed).length > 0 && (
-            <span className="day-badge todo-badge" title={`${todos.filter(t => !t.completed).length} pending todos`}>
-              ✓{todos.filter(t => !t.completed).length}
+            <span className="day-chip work-chip" title={`${entries.length} work entr${entries.length > 1 ? 'ies' : 'y'}`}>
+              {entries.length}w
             </span>
           )}
         </div>
+
+        {/* ── Work hours pill ── */}
+        {totalHours > 0 && (
+          <div className="day-row day-row-work" title={`${totalHours}h logged`}>
+            <span className="day-row-icon">⏱</span>
+            <span className="day-row-text">{totalHours}h</span>
+          </div>
+        )}
+
+        {/* ── Events ── */}
+        {visibleEvents.map(ev => (
+          <div key={ev.id} className="day-row day-row-event" title={ev.title}
+            style={{ '--ev-color': EVENT_COLORS[ev.type] || EVENT_COLORS.other }}>
+            <span className="day-row-icon">{EVENT_EMOJI[ev.type] || '📌'}</span>
+            <span className="day-row-text day-row-truncate">{ev.title}</span>
+          </div>
+        ))}
+        {extraEvents > 0 && (
+          <div className="day-row day-row-more">+{extraEvents} more</div>
+        )}
+
+        {/* ── Todos ── */}
+        {(pendingTodos > 0 || doneTodos > 0) && (
+          <div className="day-row day-row-todo"
+            title={`${pendingTodos} pending · ${doneTodos} done`}>
+            <span className="day-row-icon">✓</span>
+            <span className="day-row-text">
+              {pendingTodos > 0 && <span className="todo-pending-count">{pendingTodos}</span>}
+              {pendingTodos > 0 && doneTodos > 0 && <span className="todo-sep">/</span>}
+              {doneTodos > 0 && <span className="todo-done-count">{doneTodos}</span>}
+              <span className="todo-label"> todo{(pendingTodos + doneTodos) > 1 ? 's' : ''}</span>
+            </span>
+          </div>
+        )}
       </div>
     );
   }
