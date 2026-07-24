@@ -417,12 +417,20 @@ body {
   background: linear-gradient(135deg, var(--surface) 0%, var(--bg) 100%);
 }
 .cal-nav { display: flex; align-items: center; gap: 8px; }
-.cal-title { font-size: 16px; font-weight: 800; min-width: 220px; text-align: center; letter-spacing: -.02em; }
+.cal-title { font-size: 16px; font-weight: 800; min-width: 160px; text-align: center; letter-spacing: -.02em; }
 .cal-controls { display: flex; align-items: center; gap: 8px; }
 .view-toggle { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface); }
 .view-toggle .btn { border-radius: 0; border: none; }
 
-.calendar-grid { display: grid; grid-template-columns: repeat(7,1fr); }
+/* scroll wrapper keeps the grid at a minimum readable width on small screens */
+.calendar-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.calendar-grid {
+  display: grid; grid-template-columns: repeat(7,1fr);
+  min-width: 560px;   /* 7 cols × 80px — prevents cells squishing below usable size */
+}
 .calendar-header-cell {
   padding: 10px 6px; text-align: center; font-size: 11px;
   font-weight: 800; color: var(--muted-light); text-transform: uppercase;

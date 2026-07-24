@@ -133,11 +133,13 @@ export default function CalendarView({ store, selectedDate, onSelectDate, viewMo
         </div>
       </div>
 
-      <div className="calendar-grid">
-        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-          <div key={d} className="calendar-header-cell">{d}</div>
-        ))}
-        {days.map(day => renderDayCell(day))}
+      <div className="calendar-scroll">
+        <div className="calendar-grid">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+            <div key={d} className="calendar-header-cell">{d}</div>
+          ))}
+          {days.map(day => renderDayCell(day))}
+        </div>
       </div>
 
       <div className="calendar-legend">

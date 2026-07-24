@@ -38,7 +38,7 @@ export default function App() {
   const [showExport, setShowExport] = useState(false);
   const [showIE, setShowIE] = useState(false);
   const [showGist, setShowGist] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
 
   const pendingTodos = store.todos.filter(t => !t.completed).length;
   const todayEntries = store.getWorkEntriesForDate(fmt(new Date()));
