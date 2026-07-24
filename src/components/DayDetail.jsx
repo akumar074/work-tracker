@@ -137,7 +137,7 @@ export default function DayDetail({ dateStr, store }) {
           <div className="todo-content">
             <span className="todo-title">{t.title}</span>
             <div className="todo-meta">
-              <span className="priority-badge" style={{ color: PRIORITY_COLORS[t.priority] }}>
+              <span className={`priority-pill priority-pill--${t.priority}`}>
                 {t.priority}
               </span>
               {t.dueDate && <span className="muted">due {t.dueDate}</span>}
@@ -204,7 +204,7 @@ export default function DayDetail({ dateStr, store }) {
                     )}
                     {entry.hours && <span><Clock size={12} /> {entry.hours}h</span>}
                     {(entry.tags || []).map(tag => (
-                      <span key={tag} className="tag"><Tag size={10} />{tag}</span>
+                      <span key={tag} className="tag-pill"><Tag size={10} />{tag}</span>
                     ))}
                   </div>
                   {entry.description && <p className="work-desc">{entry.description}</p>}

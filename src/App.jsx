@@ -462,7 +462,7 @@ function LogsPage({ store }) {
                     <td><span className="category-badge">{e.category}</span></td>
                     <td className="td-hours">{e.hours ? `${e.hours}h` : '—'}</td>
                     <td className="td-tags">
-                      {(e.tags || []).map(t => <span key={t} className="tag-chip">{t}</span>)}
+                      {(e.tags || []).map(t => <span key={t} className="tag-pill">{t}</span>)}
                     </td>
                     <td className="td-actions">
                       <button className="icon-btn" onClick={() => setWorkModal(e)}><Pencil size={13}/></button>
@@ -659,8 +659,7 @@ function TodoGroup({ group, store, onEdit, onDelete, onConvert }) {
           <div className="todo-row-body">
             <span className="todo-title">{t.title}</span>
             <div className="todo-meta">
-              <span className="priority-dot" style={{background: PRIORITY_COLORS[t.priority]}}/>
-              <span style={{color: PRIORITY_COLORS[t.priority], fontSize:11, fontWeight:700}}>{t.priority}</span>
+              <span className={`priority-pill priority-pill--${t.priority}`}>{t.priority}</span>
               {t.dueDate && <span className="muted">· due {t.dueDate}</span>}
               {t.notes && <span className="muted">· {t.notes}</span>}
             </div>
