@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { idbGet, idbPut } from '../utils/idb';
 
 const KEYS = {
@@ -155,9 +155,50 @@ export function useStore() {
     notify();
   }, []);
 
-  const getTodosForDate  = useCallback((d) => _todos.filter(t => t.scope === 'day'   && t.scopeValue === d), []);
+  // A day-scope todo appears on dateStr if:
+  //   a) scopeValue === dateStr  (its origin day), OR
+  //   b) it has a dueDate > scopeValue AND dateStr falls in [scopeValue, dueDate]
+  //      AND it is not yet completed (spread stops once done)
+  const getTodosForDate = useCallback((d) =>
+    _todos.filter(t => {
+      if (t.scope !== 'day') return false;
+      if (t.scopeValue === d) return true;
+      // spread: show on every day between scopeValue and dueDate while pending
+      if (t.dueDate && t.dueDate > t.scopeValue && d > t.scopeValue && d <= t.dueDate && !t.completed)
+        return true;
+      return false;
+    }), []);
+
   const getTodosForWeek  = useCallback((w) => _todos.filter(t => t.scope === 'week'  && t.scopeValue === w), []);
   const getTodosForMonth = useCallback((m) => _todos.filter(t => t.scope === 'month' && t.scopeValue === m), []);
+
+  // ── Reorder helpers ───────────────────────────────────────────
+  const reorderWorkEntries = useCallback((fromIdx, toIdx) => {
+    const arr = [..._workEntries];
+    const [moved] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    _workEntries = arr;
+    save(KEYS.WORK_ENTRIES, _workEntries);
+    notify();
+  }, []);
+
+  const reorderEvents = useCallback((fromIdx, toIdx) => {
+    const arr = [..._events];
+    const [moved] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    _events = arr;
+    save(KEYS.EVENTS, _events);
+    notify();
+  }, []);
+
+  const reorderTodos = useCallback((fromIdx, toIdx) => {
+    const arr = [..._todos];
+    const [moved] = arr.splice(fromIdx, 1);
+    arr.splice(toIdx, 0, moved);
+    _todos = arr;
+    save(KEYS.TODOS, _todos);
+    notify();
+  }, []);
 
   return {
     workEntries: _workEntries,
@@ -165,9 +206,12 @@ export function useStore() {
     todos:       _todos,
     addWorkEntry, updateWorkEntry, deleteWorkEntry,
     getWorkEntriesForDate, getWorkEntriesInRange,
+    reorderWorkEntries,
     addEvent, updateEvent, deleteEvent,
     getEventsForDate, getEventsInRange,
+    reorderEvents,
     addTodo, updateTodo, deleteTodo, toggleTodo,
     getTodosForDate, getTodosForWeek, getTodosForMonth,
+    reorderTodos,
   };
 }

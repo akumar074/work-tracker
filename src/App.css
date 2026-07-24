@@ -950,3 +950,48 @@ body {
   margin-top: -6px;
 }
 .date-range-hint strong { font-weight: 800; }
+
+/* ── Drag & Drop ─────────────────────────────────────────────────────────── */
+.drag-handle {
+  display: inline-flex; align-items: center;
+  color: var(--muted-light); cursor: grab; flex-shrink: 0;
+  padding: 0 4px; margin-left: -4px;
+  transition: color var(--dur-fast) var(--ease);
+  touch-action: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.drag-handle:hover  { color: var(--muted); }
+
+/* item being dragged */
+.dragging {
+  opacity: .45;
+  box-shadow: var(--shadow-md) !important;
+  transform: scale(1.01) !important;
+}
+
+/* drop target highlight */
+.drag-over {
+  border-color: var(--accent) !important;
+  background: var(--accent-light) !important;
+  box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+/* completed todos — clear strikethrough + fade */
+.todo-item.completed .todo-title,
+.todo-row.completed  .todo-title {
+  text-decoration: line-through;
+  color: var(--muted-light);
+}
+.todo-item.completed,
+.todo-row.completed {
+  opacity: .65;
+}
+
+/* spread badge — shown on days where a todo carries over from its origin day */
+.spread-badge {
+  font-size: 10.5px; font-weight: 600;
+  color: var(--secondary);
+  background: var(--secondary-light);
+  padding: 1px 6px; border-radius: var(--radius-xs);
+  white-space: nowrap;
+}

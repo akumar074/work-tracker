@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useStore } from './store/useStore';
 import CalendarView from './components/CalendarView';
 import DayDetail from './components/DayDetail';
@@ -13,7 +13,7 @@ import GistPanel from './components/GistPanel';
 import {
   LayoutDashboard, CalendarDays, ListTodo, BookOpen,
   Download, Upload, Plus, Pencil, Trash2, CheckSquare, Square,
-  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud
+  Clock, Tag, TrendingUp, Activity, ChevronRight, X, Menu, Cloud, GripVertical
 } from 'lucide-react';
 import './App.css';
 
@@ -501,10 +501,8 @@ function TodosPage({ store }) {
   const [todoModal, setTodoModal] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
 
-  let todos = [...store.todos].sort((a, b) => {
-    const p = { high: 0, medium: 1, low: 2 };
-    return (p[a.priority] ?? 1) - (p[b.priority] ?? 1);
-  });
+  // No sort by priority here — order is now persisted via drag
+  let todos = [...store.todos];
   if (filter === 'pending')   todos = todos.filter(t => !t.completed);
   if (filter === 'completed') todos = todos.filter(t =>  t.completed);
 
@@ -539,37 +537,13 @@ function TodosPage({ store }) {
       {Object.keys(grouped).length === 0
         ? <div className="empty-state"><ListTodo size={40}/><p>No todos found.</p></div>
         : Object.values(grouped).sort((a,b) => b.scopeValue.localeCompare(a.scopeValue)).map(group => (
-          <div key={`${group.scope}:${group.scopeValue}`} className="todo-group">
-            <div className="todo-group-header">
-              <span className="scope-label">{group.scope}</span>
-              <span className="scope-value">{group.scopeValue}</span>
-              <span className="scope-progress">
-                {group.items.filter(t=>t.completed).length}/{group.items.length}
-              </span>
-            </div>
-            {group.items.map(t => (
-              <div key={t.id} className={`todo-row ${t.completed?'completed':''}`}>
-                <button className="icon-btn" onClick={() => store.toggleTodo(t.id)}>
-                  {t.completed
-                    ? <CheckSquare size={16} color="var(--teal)"/>
-                    : <Square size={16}/>}
-                </button>
-                <div className="todo-row-body">
-                  <span className="todo-title">{t.title}</span>
-                  <div className="todo-meta">
-                    <span className="priority-dot" style={{background: PRIORITY_COLORS[t.priority]}}/>
-                    <span style={{color: PRIORITY_COLORS[t.priority], fontSize:11, fontWeight:700}}>{t.priority}</span>
-                    {t.dueDate && <span className="muted">· due {t.dueDate}</span>}
-                    {t.notes && <span className="muted">· {t.notes}</span>}
-                  </div>
-                </div>
-                <div className="item-actions">
-                  <button className="icon-btn" onClick={() => setTodoModal(t)}><Pencil size={13}/></button>
-                  <button className="icon-btn danger" onClick={() => setConfirmId(t.id)}><Trash2 size={13}/></button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <TodoGroup
+            key={`${group.scope}:${group.scopeValue}`}
+            group={group}
+            store={store}
+            onEdit={setTodoModal}
+            onDelete={setConfirmId}
+          />
         ))
       }
 
@@ -587,6 +561,87 @@ function TodosPage({ store }) {
       {confirmId && (
         <ConfirmModal text="Delete this todo?" onConfirm={() => { store.deleteTodo(confirmId); setConfirmId(null); }} onClose={() => setConfirmId(null)} />
       )}
+    </div>
+  );
+}
+
+function TodoGroup({ group, store, onEdit, onDelete }) {
+  const dragIdx = useRef(null);
+  const [overIdx, setOverIdx] = useState(null);
+
+  function globalIdx(item) {
+    return store.todos.findIndex(t => t.id === item.id);
+  }
+
+  function onDragStart(e, idx) {
+    dragIdx.current = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.classList.add('dragging');
+  }
+  function onDragOver(e, idx) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setOverIdx(idx);
+  }
+  function onDragLeave() { setOverIdx(null); }
+  function onDrop(e, idx) {
+    e.preventDefault();
+    setOverIdx(null);
+    if (dragIdx.current !== null && dragIdx.current !== idx) {
+      store.reorderTodos(
+        globalIdx(group.items[dragIdx.current]),
+        globalIdx(group.items[idx])
+      );
+    }
+    dragIdx.current = null;
+  }
+  function onDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    setOverIdx(null);
+    dragIdx.current = null;
+  }
+
+  return (
+    <div className="todo-group">
+      <div className="todo-group-header">
+        <span className="scope-label">{group.scope}</span>
+        <span className="scope-value">{group.scopeValue}</span>
+        <span className="scope-progress">
+          {group.items.filter(t=>t.completed).length}/{group.items.length}
+        </span>
+      </div>
+      {group.items.map((t, i) => (
+        <div
+          key={t.id}
+          className={`todo-row ${t.completed ? 'completed' : ''} ${overIdx === i ? 'drag-over' : ''}`}
+          draggable
+          onDragStart={e => onDragStart(e, i)}
+          onDragOver={e => onDragOver(e, i)}
+          onDragLeave={onDragLeave}
+          onDrop={e => onDrop(e, i)}
+          onDragEnd={onDragEnd}
+        >
+          <span className="drag-handle"><GripVertical size={14}/></span>
+          <button className="icon-btn" onClick={() => store.toggleTodo(t.id)}>
+            {t.completed
+              ? <CheckSquare size={16} color="var(--teal)"/>
+              : <Square size={16}/>}
+          </button>
+          <div className="todo-row-body">
+            <span className="todo-title">{t.title}</span>
+            <div className="todo-meta">
+              <span className="priority-dot" style={{background: PRIORITY_COLORS[t.priority]}}/>
+              <span style={{color: PRIORITY_COLORS[t.priority], fontSize:11, fontWeight:700}}>{t.priority}</span>
+              {t.dueDate && <span className="muted">· due {t.dueDate}</span>}
+              {t.notes && <span className="muted">· {t.notes}</span>}
+            </div>
+          </div>
+          <div className="item-actions">
+            <button className="icon-btn" onClick={() => onEdit(t)}><Pencil size={13}/></button>
+            <button className="icon-btn danger" onClick={() => onDelete(t.id)}><Trash2 size={13}/></button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

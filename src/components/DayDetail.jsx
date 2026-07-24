@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, Clock, Tag, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Pencil, Trash2, Clock, Tag, CheckSquare, Square, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
 import { fmtDisplay, fmtWeekKey, fmtMonthKey } from '../utils/dateUtils';
 import WorkEntryModal from './WorkEntryModal';
 import EventModal from './EventModal';
@@ -15,11 +15,53 @@ const EVENT_EMOJI = {
 };
 const PRIORITY_COLORS = { high: '#ef4444', medium: '#f97316', low: '#6b7280' };
 
+// ── Generic drag-reorder hook ─────────────────────────────────────────────────
+function useDragReorder(items, reorder) {
+  const dragIdx = useRef(null);
+  const [overIdx, setOverIdx] = useState(null);
+
+  function onDragStart(e, idx) {
+    dragIdx.current = idx;
+    e.dataTransfer.effectAllowed = 'move';
+    e.currentTarget.classList.add('dragging');
+  }
+
+  function onDragOver(e, idx) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setOverIdx(idx);
+  }
+
+  function onDragLeave() { setOverIdx(null); }
+
+  function onDrop(e, idx) {
+    e.preventDefault();
+    setOverIdx(null);
+    if (dragIdx.current !== null && dragIdx.current !== idx) {
+      reorder(dragIdx.current, idx);
+    }
+    dragIdx.current = null;
+  }
+
+  function onDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    setOverIdx(null);
+    dragIdx.current = null;
+  }
+
+  return { overIdx, onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd };
+}
+
+// ── Helpers to map a displayed list item back to global index ─────────────────
+function globalIdx(allItems, item) {
+  return allItems.findIndex(x => x.id === item.id);
+}
+
 export default function DayDetail({ dateStr, store }) {
-  const [workModal, setWorkModal] = useState(null);   // null | 'add' | entry
+  const [workModal, setWorkModal] = useState(null);
   const [eventModal, setEventModal] = useState(null);
   const [todoModal, setTodoModal] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null); // { type, id }
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [sectionsOpen, setSectionsOpen] = useState({ work: true, events: true, todos: true });
 
   if (!dateStr) {
@@ -35,11 +77,11 @@ export default function DayDetail({ dateStr, store }) {
   const monthKey = fmtMonthKey(date);
 
   const workEntries = store.getWorkEntriesForDate(dateStr);
-  const events = store.getEventsForDate(dateStr);
-  const dayTodos = store.getTodosForDate(dateStr);
-  const weekTodos = store.getTodosForWeek(weekKey);
-  const monthTodos = store.getTodosForMonth(monthKey);
-  const totalHours = workEntries.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
+  const events      = store.getEventsForDate(dateStr);
+  const dayTodos    = store.getTodosForDate(dateStr);
+  const weekTodos   = store.getTodosForWeek(weekKey);
+  const monthTodos  = store.getTodosForMonth(monthKey);
+  const totalHours  = workEntries.reduce((s, e) => s + (parseFloat(e.hours) || 0), 0);
 
   function toggleSection(key) {
     setSectionsOpen(s => ({ ...s, [key]: !s[key] }));
@@ -47,34 +89,67 @@ export default function DayDetail({ dateStr, store }) {
 
   function handleDeleteConfirmed() {
     if (!confirmDelete) return;
-    if (confirmDelete.type === 'work') store.deleteWorkEntry(confirmDelete.id);
+    if (confirmDelete.type === 'work')  store.deleteWorkEntry(confirmDelete.id);
     if (confirmDelete.type === 'event') store.deleteEvent(confirmDelete.id);
-    if (confirmDelete.type === 'todo') store.deleteTodo(confirmDelete.id);
+    if (confirmDelete.type === 'todo')  store.deleteTodo(confirmDelete.id);
     setConfirmDelete(null);
   }
 
-  function renderTodoList(todos, scope) {
-    if (!todos.length) return <p className="empty-hint">No {scope} todos yet.</p>;
-    return todos.map(t => (
-      <div key={t.id} className={`todo-item ${t.completed ? 'completed' : ''}`}>
-        <button className="icon-btn" onClick={() => store.toggleTodo(t.id)}>
-          {t.completed ? <CheckSquare size={16} color="#10b981" /> : <Square size={16} />}
-        </button>
-        <div className="todo-content">
-          <span className="todo-title">{t.title}</span>
-          <div className="todo-meta">
-            <span className="priority-badge" style={{ color: PRIORITY_COLORS[t.priority] }}>
-              {t.priority}
-            </span>
-            {t.dueDate && <span className="muted">due {t.dueDate}</span>}
+  // Drag state for each section
+  const workDrag  = useDragReorder(store.workEntries, (fi, ti) =>
+    store.reorderWorkEntries(globalIdx(store.workEntries, workEntries[fi]), globalIdx(store.workEntries, workEntries[ti])));
+
+  const eventDrag = useDragReorder(store.events, (fi, ti) =>
+    store.reorderEvents(globalIdx(store.events, events[fi]), globalIdx(store.events, events[ti])));
+
+  // For todos we operate on the combined visible list per group independently
+  function makeTodoDrag(visibleList) {
+    return useDragReorder(store.todos, (fi, ti) =>
+      store.reorderTodos(globalIdx(store.todos, visibleList[fi]), globalIdx(store.todos, visibleList[ti])));
+  }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const dayTodoDrag   = makeTodoDrag(dayTodos);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const weekTodoDrag  = makeTodoDrag(weekTodos);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const monthTodoDrag = makeTodoDrag(monthTodos);
+
+  function renderTodoList(todos, scopeLabel, drag) {
+    if (!todos.length) return <p className="empty-hint">No {scopeLabel} todos yet.</p>;
+    return todos.map((t, i) => {
+      const isSpread = t.scopeValue !== dateStr; // shown via spread, not origin day
+      return (
+        <div
+          key={t.id}
+          className={`todo-item ${t.completed ? 'completed' : ''} ${drag.overIdx === i ? 'drag-over' : ''}`}
+          draggable
+          onDragStart={e => drag.onDragStart(e, i)}
+          onDragOver={e => drag.onDragOver(e, i)}
+          onDragLeave={drag.onDragLeave}
+          onDrop={e => drag.onDrop(e, i)}
+          onDragEnd={drag.onDragEnd}
+        >
+          <span className="drag-handle"><GripVertical size={13} /></span>
+          <button className="icon-btn" onClick={() => store.toggleTodo(t.id)}>
+            {t.completed ? <CheckSquare size={16} color="#10b981" /> : <Square size={16} />}
+          </button>
+          <div className="todo-content">
+            <span className="todo-title">{t.title}</span>
+            <div className="todo-meta">
+              <span className="priority-badge" style={{ color: PRIORITY_COLORS[t.priority] }}>
+                {t.priority}
+              </span>
+              {t.dueDate && <span className="muted">due {t.dueDate}</span>}
+              {isSpread && <span className="spread-badge">↩ from {t.scopeValue}</span>}
+            </div>
+          </div>
+          <div className="item-actions">
+            <button className="icon-btn" title="Edit"   onClick={() => setTodoModal(t)}><Pencil size={14} /></button>
+            <button className="icon-btn danger" title="Delete" onClick={() => setConfirmDelete({ type: 'todo', id: t.id })}><Trash2 size={14} /></button>
           </div>
         </div>
-        <div className="item-actions">
-          <button className="icon-btn" title="Edit" onClick={() => setTodoModal(t)}><Pencil size={14} /></button>
-          <button className="icon-btn danger" title="Delete" onClick={() => setConfirmDelete({ type: 'todo', id: t.id })}><Trash2 size={14} /></button>
-        </div>
-      </div>
-    ));
+      );
+    });
   }
 
   return (
@@ -99,21 +174,29 @@ export default function DayDetail({ dateStr, store }) {
           <div className="section-body">
             {workEntries.length === 0
               ? <p className="empty-hint">No work entries yet. Click Add to log work.</p>
-              : workEntries.map(entry => (
-                <div key={entry.id} className="work-item">
+              : workEntries.map((entry, i) => (
+                <div
+                  key={entry.id}
+                  className={`work-item draggable-item ${workDrag.overIdx === i ? 'drag-over' : ''}`}
+                  draggable
+                  onDragStart={e => workDrag.onDragStart(e, i)}
+                  onDragOver={e => workDrag.onDragOver(e, i)}
+                  onDragLeave={workDrag.onDragLeave}
+                  onDrop={e => workDrag.onDrop(e, i)}
+                  onDragEnd={workDrag.onDragEnd}
+                >
                   <div className="work-item-top">
+                    <span className="drag-handle"><GripVertical size={13} /></span>
                     <span className="work-title">{entry.title}</span>
                     <div className="item-actions">
-                      <button className="icon-btn" title="Edit" onClick={() => setWorkModal(entry)}><Pencil size={14} /></button>
+                      <button className="icon-btn" title="Edit"   onClick={() => setWorkModal(entry)}><Pencil size={14} /></button>
                       <button className="icon-btn danger" title="Delete" onClick={() => setConfirmDelete({ type: 'work', id: entry.id })}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="work-meta">
                     <span className="category-badge">{entry.category}</span>
                     {entry.endDate && entry.endDate !== entry.date && (
-                      <span className="date-range-badge">
-                        📅 {entry.date} → {entry.endDate}
-                      </span>
+                      <span className="date-range-badge">📅 {entry.date} → {entry.endDate}</span>
                     )}
                     {entry.hours && <span><Clock size={12} /> {entry.hours}h</span>}
                     {(entry.tags || []).map(tag => (
@@ -143,8 +226,19 @@ export default function DayDetail({ dateStr, store }) {
           <div className="section-body">
             {events.length === 0
               ? <p className="empty-hint">No events for this day.</p>
-              : events.map(ev => (
-                <div key={ev.id} className="event-item" style={{ borderLeftColor: EVENT_COLORS[ev.type] || EVENT_COLORS.other }}>
+              : events.map((ev, i) => (
+                <div
+                  key={ev.id}
+                  className={`event-item draggable-item ${eventDrag.overIdx === i ? 'drag-over' : ''}`}
+                  draggable
+                  onDragStart={e => eventDrag.onDragStart(e, i)}
+                  onDragOver={e => eventDrag.onDragOver(e, i)}
+                  onDragLeave={eventDrag.onDragLeave}
+                  onDrop={e => eventDrag.onDrop(e, i)}
+                  onDragEnd={eventDrag.onDragEnd}
+                  style={{ borderLeftColor: EVENT_COLORS[ev.type] || EVENT_COLORS.other }}
+                >
+                  <span className="drag-handle"><GripVertical size={13} /></span>
                   <span className="event-emoji">{EVENT_EMOJI[ev.type] || '📌'}</span>
                   <div className="event-content">
                     <span className="event-title">{ev.title}</span>
@@ -176,11 +270,11 @@ export default function DayDetail({ dateStr, store }) {
         {sectionsOpen.todos && (
           <div className="section-body">
             {dayTodos.length > 0 && <div className="todo-group-label">Day</div>}
-            {renderTodoList(dayTodos, 'day')}
+            {renderTodoList(dayTodos, 'day', dayTodoDrag)}
             {weekTodos.length > 0 && <div className="todo-group-label">Week ({weekKey})</div>}
-            {weekTodos.length > 0 && renderTodoList(weekTodos, 'week')}
+            {weekTodos.length > 0 && renderTodoList(weekTodos, 'week', weekTodoDrag)}
             {monthTodos.length > 0 && <div className="todo-group-label">Month ({monthKey})</div>}
-            {monthTodos.length > 0 && renderTodoList(monthTodos, 'month')}
+            {monthTodos.length > 0 && renderTodoList(monthTodos, 'month', monthTodoDrag)}
             {dayTodos.length === 0 && weekTodos.length === 0 && monthTodos.length === 0 &&
               <p className="empty-hint">No todos. Click Add to create one.</p>}
           </div>
