@@ -175,52 +175,26 @@ export default function App() {
             <span className="stat-pill">Pending <strong>{pendingTodos}</strong></span>
           </div>
 
-          {/* ── Quick Gist sync buttons (only when connected) ── */}
+          {/* Gist controls — inline on desktop, hidden here on mobile */}
           {connected && (
-            <div className="topbar-gist">
-              {/* ── Sync status indicator ── */}
-              <span className={`sync-indicator sync-indicator--${syncStatus}`} title="Click to re-check sync status" onClick={checkSyncStatus}>
-                {syncStatus === 'checking'    && <RefreshCw size={12} className="spin" />}
-                {syncStatus === 'synced'      && <CheckCircle size={12} />}
-                {syncStatus === 'pull-needed' && <CloudDownload size={12} />}
-                {syncStatus === 'push-needed' && <CloudUpload size={12} />}
-                {syncStatus === 'unknown'     && <Cloud size={12} />}
-                <span className="sync-indicator-label">
-                  {syncStatus === 'checking'    && 'Checking…'}
-                  {syncStatus === 'synced'      && 'Synced'}
-                  {syncStatus === 'pull-needed' && 'Pull needed'}
-                  {syncStatus === 'push-needed' && 'Push needed'}
-                  {syncStatus === 'unknown'     && 'Unknown'}
-                </span>
-              </span>
-
-              <button
-                className={`topbar-gist-btn ${gistSync === 'pushing' ? 'busy' : ''} ${syncStatus === 'push-needed' ? 'highlighted' : ''}`}
-                title="Push to Gist"
-                disabled={gistSync === 'pushing' || gistSync === 'pulling'}
-                onClick={handleQuickPush}
-              >
-                {gistSync === 'pushing'
-                  ? <RefreshCw size={14} className="spin" />
-                  : <CloudUpload size={14} />}
-                <span>Push</span>
-              </button>
-              <button
-                className={`topbar-gist-btn ${gistSync === 'pulling' ? 'busy' : ''} ${syncStatus === 'pull-needed' ? 'highlighted' : ''}`}
-                title="Pull from Gist"
-                disabled={gistSync === 'pushing' || gistSync === 'pulling'}
-                onClick={handleQuickPull}
-              >
-                {gistSync === 'pulling'
-                  ? <RefreshCw size={14} className="spin" />
-                  : <CloudDownload size={14} />}
-                <span>Pull</span>
-              </button>
-              {gistSync === 'ok'  && <span className="gist-status ok"><CheckCircle size={13}/> {gistMsg}</span>}
-              {gistSync === 'err' && <span className="gist-status err"><AlertCircle size={13}/> {gistMsg}</span>}
+            <div className="topbar-gist topbar-gist--desktop">
+              <GistSyncControls
+                syncStatus={syncStatus} gistSync={gistSync} gistMsg={gistMsg}
+                onCheck={checkSyncStatus} onPush={handleQuickPush} onPull={handleQuickPull}
+              />
             </div>
           )}
         </header>
+
+        {/* Gist sub-bar — visible only on mobile when connected */}
+        {connected && (
+          <div className="gist-subbar">
+            <GistSyncControls
+              syncStatus={syncStatus} gistSync={gistSync} gistMsg={gistMsg}
+              onCheck={checkSyncStatus} onPush={handleQuickPush} onPull={handleQuickPull}
+            />
+          </div>
+        )}
 
         {/* Pull confirm banner */}
         {pullConfirm && (
@@ -813,6 +787,55 @@ function TodoGroup({ group, store, onEdit, onDelete, onConvert }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ── Shared Gist sync controls (topbar desktop + sub-bar mobile) ──────────────
+function GistSyncControls({ syncStatus, gistSync, gistMsg, onCheck, onPush, onPull }) {
+  return (
+    <>
+      <span
+        className={`sync-indicator sync-indicator--${syncStatus}`}
+        title="Click to re-check sync status"
+        onClick={onCheck}
+      >
+        {syncStatus === 'checking'    && <RefreshCw size={12} className="spin" />}
+        {syncStatus === 'synced'      && <CheckCircle size={12} />}
+        {syncStatus === 'pull-needed' && <CloudDownload size={12} />}
+        {syncStatus === 'push-needed' && <CloudUpload size={12} />}
+        {syncStatus === 'unknown'     && <Cloud size={12} />}
+        <span className="sync-indicator-label">
+          {syncStatus === 'checking'    && 'Checking…'}
+          {syncStatus === 'synced'      && 'Synced'}
+          {syncStatus === 'pull-needed' && 'Pull needed'}
+          {syncStatus === 'push-needed' && 'Push needed'}
+          {syncStatus === 'unknown'     && 'Unknown'}
+        </span>
+      </span>
+
+      <button
+        className={`topbar-gist-btn ${gistSync === 'pushing' ? 'busy' : ''} ${syncStatus === 'push-needed' ? 'highlighted' : ''}`}
+        title="Push to Gist"
+        disabled={gistSync === 'pushing' || gistSync === 'pulling'}
+        onClick={onPush}
+      >
+        {gistSync === 'pushing' ? <RefreshCw size={14} className="spin" /> : <CloudUpload size={14} />}
+        <span>Push</span>
+      </button>
+
+      <button
+        className={`topbar-gist-btn ${gistSync === 'pulling' ? 'busy' : ''} ${syncStatus === 'pull-needed' ? 'highlighted' : ''}`}
+        title="Pull from Gist"
+        disabled={gistSync === 'pushing' || gistSync === 'pulling'}
+        onClick={onPull}
+      >
+        {gistSync === 'pulling' ? <RefreshCw size={14} className="spin" /> : <CloudDownload size={14} />}
+        <span>Pull</span>
+      </button>
+
+      {gistSync === 'ok'  && <span className="gist-status ok"><CheckCircle size={13}/> {gistMsg}</span>}
+      {gistSync === 'err' && <span className="gist-status err"><AlertCircle size={13}/> {gistMsg}</span>}
+    </>
   );
 }
 

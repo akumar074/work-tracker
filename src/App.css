@@ -1080,6 +1080,30 @@ body {
   margin-left: 8px; padding-left: 12px;
   border-left: 1px solid var(--border);
 }
+/* on mobile the desktop gist block is hidden; sub-bar takes over */
+@media (max-width: 640px) {
+  .topbar-gist--desktop { display: none; }
+}
+
+/* ── Gist sub-bar (mobile only) ─────────────────────────────────────────── */
+.gist-subbar {
+  display: none; /* hidden on desktop */
+}
+@media (max-width: 640px) {
+  .gist-subbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 7px 14px;
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: var(--topbar-h); z-index: 89;
+    box-shadow: var(--shadow-xs);
+  }
+  /* on the sub-bar, sync indicator takes full left side, buttons go right */
+  .gist-subbar .sync-indicator { flex: 1; }
+  .gist-subbar .gist-status    { font-size: 11px; }
+}
 
 /* sync status indicator pill */
 .sync-indicator {
@@ -1159,7 +1183,3 @@ body {
 .pull-confirm-banner > span { flex: 1; min-width: 0; }
 .pull-confirm-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
-@media (max-width: 640px) {
-  .topbar-gist span { display: none; }  /* icon-only on very small screens */
-  .gist-status      { display: none; }
-}
