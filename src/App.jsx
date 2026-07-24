@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import { replaceAllData } from './store/useStore';
 import CalendarView from './components/CalendarView';
@@ -11,7 +11,7 @@ import {
 } from './utils/dateUtils';
 import ImportExportPanel from './components/ImportExportPanel';
 import GistPanel from './components/GistPanel';
-import { isConnected, pushToGist, pullFromGist } from './utils/gist';
+import { isConnected, pushToGist, pullFromGist, getGistMeta, getLastPushedAt } from './utils/gist';
 import {
   LayoutDashboard, CalendarDays, ListTodo, BookOpen,
   Download, Upload, Plus, Pencil, Trash2, CheckSquare, Square,
@@ -44,17 +44,58 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 768);
 
   // ── Quick Gist sync state ──────────────────────────────────────
-  const [gistSync, setGistSync] = useState('idle'); // idle|pushing|pulling|ok|err
-  const [gistMsg,  setGistMsg]  = useState('');
-  const [pullConfirm, setPullConfirm] = useState(null); // pulled data awaiting confirm
+  const [gistSync,   setGistSync]   = useState('idle'); // idle|pushing|pulling|ok|err
+  const [gistMsg,    setGistMsg]    = useState('');
+  const [pullConfirm, setPullConfirm] = useState(null);
+  // synced | pull-needed | push-needed | unknown | checking
+  const [syncStatus, setSyncStatus] = useState('unknown');
 
   const connected = isConnected();
+
+  // ── Sync status check ──────────────────────────────────────────
+  async function checkSyncStatus() {
+    if (!isConnected()) return;
+    setSyncStatus('checking');
+    try {
+      const { updatedAt } = await getGistMeta();
+      const lastPushed    = getLastPushedAt();
+
+      if (!lastPushed) {
+        // Never pushed from this browser — remote may have data we don't
+        setSyncStatus('pull-needed');
+        return;
+      }
+
+      const remoteTime = new Date(updatedAt).getTime();
+      const localTime  = new Date(lastPushed).getTime();
+      const SKEW_MS    = 5000; // 5 s tolerance for clock drift
+
+      if (remoteTime > localTime + SKEW_MS) {
+        setSyncStatus('pull-needed');  // remote is newer → pull
+      } else if (localTime > remoteTime + SKEW_MS) {
+        setSyncStatus('push-needed');  // local is newer  → push
+      } else {
+        setSyncStatus('synced');
+      }
+    } catch {
+      setSyncStatus('unknown');
+    }
+  }
+
+  // Check on mount and every 60 s while connected
+  useEffect(() => {
+    if (!connected) return;
+    checkSyncStatus();
+    const id = setInterval(checkSyncStatus, 60_000);
+    return () => clearInterval(id);
+  }, [connected]);
 
   async function handleQuickPush() {
     setGistSync('pushing'); setGistMsg('');
     try {
       await pushToGist({ workEntries: store.workEntries, events: store.events, todos: store.todos });
       setGistSync('ok'); setGistMsg('Pushed ✓');
+      setSyncStatus('synced');
       setTimeout(() => setGistSync('idle'), 3000);
     } catch (e) { setGistSync('err'); setGistMsg(e.message); }
   }
@@ -72,6 +113,7 @@ export default function App() {
     replaceAllData(pullConfirm);
     setPullConfirm(null);
     setGistSync('ok'); setGistMsg('Pulled ✓');
+    setSyncStatus('synced');
     setTimeout(() => setGistSync('idle'), 3000);
   }
 
@@ -136,8 +178,24 @@ export default function App() {
           {/* ── Quick Gist sync buttons (only when connected) ── */}
           {connected && (
             <div className="topbar-gist">
+              {/* ── Sync status indicator ── */}
+              <span className={`sync-indicator sync-indicator--${syncStatus}`} title="Click to re-check sync status" onClick={checkSyncStatus}>
+                {syncStatus === 'checking'    && <RefreshCw size={12} className="spin" />}
+                {syncStatus === 'synced'      && <CheckCircle size={12} />}
+                {syncStatus === 'pull-needed' && <CloudDownload size={12} />}
+                {syncStatus === 'push-needed' && <CloudUpload size={12} />}
+                {syncStatus === 'unknown'     && <Cloud size={12} />}
+                <span className="sync-indicator-label">
+                  {syncStatus === 'checking'    && 'Checking…'}
+                  {syncStatus === 'synced'      && 'Synced'}
+                  {syncStatus === 'pull-needed' && 'Pull needed'}
+                  {syncStatus === 'push-needed' && 'Push needed'}
+                  {syncStatus === 'unknown'     && 'Unknown'}
+                </span>
+              </span>
+
               <button
-                className={`topbar-gist-btn ${gistSync === 'pushing' ? 'busy' : ''}`}
+                className={`topbar-gist-btn ${gistSync === 'pushing' ? 'busy' : ''} ${syncStatus === 'push-needed' ? 'highlighted' : ''}`}
                 title="Push to Gist"
                 disabled={gistSync === 'pushing' || gistSync === 'pulling'}
                 onClick={handleQuickPush}
@@ -148,7 +206,7 @@ export default function App() {
                 <span>Push</span>
               </button>
               <button
-                className={`topbar-gist-btn ${gistSync === 'pulling' ? 'busy' : ''}`}
+                className={`topbar-gist-btn ${gistSync === 'pulling' ? 'busy' : ''} ${syncStatus === 'pull-needed' ? 'highlighted' : ''}`}
                 title="Pull from Gist"
                 disabled={gistSync === 'pushing' || gistSync === 'pulling'}
                 onClick={handleQuickPull}

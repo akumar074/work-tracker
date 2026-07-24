@@ -9,11 +9,12 @@
  * using the user's Personal Access Token (gist scope required).
  */
 
-const LS_PAT     = 'wt_gist_pat';
-const LS_GIST_ID = 'wt_gist_id';
-const LS_GH_HOST = 'wt_gist_host';   // defaults to api.github.com
-const FILENAME   = 'work-tracker-data.json';
-const SCHEMA_VER = 1;
+const LS_PAT          = 'wt_gist_pat';
+const LS_GIST_ID      = 'wt_gist_id';
+const LS_GH_HOST      = 'wt_gist_host';      // defaults to api.github.com
+const LS_LAST_PUSHED  = 'wt_gist_last_push'; // ISO timestamp of our last push
+const FILENAME        = 'work-tracker-data.json';
+const SCHEMA_VER      = 1;
 
 // ── PAT / config storage ─────────────────────────────────────────────────
 export function getPAT()    { return localStorage.getItem(LS_PAT)     || ''; }
@@ -24,10 +25,14 @@ export function savePAT(pat)      { localStorage.setItem(LS_PAT,     pat); }
 export function saveGistId(id)    { localStorage.setItem(LS_GIST_ID, id); }
 export function saveGHHost(host)  { localStorage.setItem(LS_GH_HOST, host); }
 
+export function getLastPushedAt()  { return localStorage.getItem(LS_LAST_PUSHED) || null; }
+export function saveLastPushedAt() { localStorage.setItem(LS_LAST_PUSHED, new Date().toISOString()); }
+
 export function clearGistConfig() {
   localStorage.removeItem(LS_PAT);
   localStorage.removeItem(LS_GIST_ID);
   localStorage.removeItem(LS_GH_HOST);
+  localStorage.removeItem(LS_LAST_PUSHED);
 }
 
 export function isConnected() { return !!(getPAT() && getGistId()); }
@@ -89,11 +94,13 @@ export async function createGist(data) {
 /**
  * Push current data to an existing Gist (PATCH).
  * Creates a new Gist if no ID is stored yet.
+ * Records lastPushedAt in localStorage after success.
  */
 export async function pushToGist(data) {
   let id = getGistId();
   if (!id) {
     id = await createGist(data);
+    saveLastPushedAt();
     return id;
   }
   await ghFetch('PATCH', `/gists/${id}`, {
@@ -101,7 +108,20 @@ export async function pushToGist(data) {
       [FILENAME]: { content: serializeData(data) },
     },
   });
+  saveLastPushedAt();
   return id;
+}
+
+/**
+ * Fetch only the Gist metadata (no file content) to cheaply check
+ * whether the remote has changed since our last push.
+ * Returns { updatedAt: ISO string } or throws.
+ */
+export async function getGistMeta() {
+  const id = getGistId();
+  if (!id) throw new Error('No Gist ID configured.');
+  const gist = await ghFetch('GET', `/gists/${id}`);
+  return { updatedAt: gist.updated_at };
 }
 
 /**
