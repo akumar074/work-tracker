@@ -110,6 +110,11 @@ export default function DayDetail({ dateStr, store }) {
                   </div>
                   <div className="work-meta">
                     <span className="category-badge">{entry.category}</span>
+                    {entry.endDate && entry.endDate !== entry.date && (
+                      <span className="date-range-badge">
+                        📅 {entry.date} → {entry.endDate}
+                      </span>
+                    )}
                     {entry.hours && <span><Clock size={12} /> {entry.hours}h</span>}
                     {(entry.tags || []).map(tag => (
                       <span key={tag} className="tag"><Tag size={10} />{tag}</span>

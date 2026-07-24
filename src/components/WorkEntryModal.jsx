@@ -13,6 +13,7 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
     hours: entry?.hours || '',
     tags: entry?.tags?.join(', ') || '',
     date: entry?.date || date || fmt(new Date()),
+    endDate: entry?.endDate || '',
   });
   const [errors, setErrors] = useState({});
 
@@ -21,6 +22,8 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
     if (!form.title.trim()) e.title = 'Title is required';
     if (form.hours && (isNaN(form.hours) || form.hours < 0 || form.hours > 24))
       e.hours = 'Hours must be 0–24';
+    if (form.endDate && form.endDate < form.date)
+      e.endDate = 'End date must be on or after start date';
     return e;
   }
 
@@ -30,10 +33,13 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     onSave({
       ...form,
+      endDate: form.endDate || null,
       hours: form.hours ? parseFloat(form.hours) : null,
       tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
     });
   }
+
+  const isRange = !!(form.endDate && form.endDate !== form.date);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -43,11 +49,25 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
           <button className="icon-btn" onClick={onClose}><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} className="modal-form">
-          <div className="form-group">
-            <label>Date</label>
-            <input type="date" value={form.date}
-              onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Start Date</label>
+              <input type="date" value={form.date}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+            <div className="form-group">
+              <label>End Date <span className="muted">(optional)</span></label>
+              <input type="date" value={form.endDate}
+                min={form.date}
+                onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
+              {errors.endDate && <span className="error">{errors.endDate}</span>}
+            </div>
           </div>
+          {isRange && (
+            <p className="date-range-hint">
+              📅 This entry spans <strong>{daysBetween(form.date, form.endDate)}</strong> days
+            </p>
+          )}
           <div className="form-group">
             <label>Title *</label>
             <input type="text" value={form.title} placeholder="What did you work on?"
@@ -87,4 +107,9 @@ export default function WorkEntryModal({ date, entry, onSave, onClose }) {
       </div>
     </div>
   );
+}
+
+function daysBetween(start, end) {
+  const ms = new Date(end + 'T00:00:00') - new Date(start + 'T00:00:00');
+  return Math.round(ms / 86400000) + 1;
 }

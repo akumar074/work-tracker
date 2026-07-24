@@ -233,7 +233,10 @@ function DashboardPage({ store, onNavigate }) {
           : <div className="recent-list">
             {recent.map(e => (
               <div key={e.id} className="recent-entry">
-                <div className="recent-entry-date">{e.date}</div>
+                <div className="recent-entry-date">
+                  {e.date}
+                  {e.endDate && e.endDate !== e.date && <span className="recent-range"> → {e.endDate}</span>}
+                </div>
                 <div className="recent-entry-title">{e.title}</div>
                 <span className="category-badge">{e.category}</span>
                 {e.hours && <span className="recent-entry-hours">{e.hours}h</span>}
@@ -446,7 +449,12 @@ function LogsPage({ store }) {
               <tbody>
                 {entries.map(e => (
                   <tr key={e.id}>
-                    <td className="td-date">{e.date}</td>
+                    <td className="td-date">
+                      {e.date}
+                      {e.endDate && e.endDate !== e.date && (
+                        <span className="td-date-range"> → {e.endDate}</span>
+                      )}
+                    </td>
                     <td className="td-title">
                       <span className="entry-title">{e.title}</span>
                       {e.description && <span className="entry-desc">{e.description}</span>}
